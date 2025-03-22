@@ -1,2 +1,5 @@
-# datalake-timeseries
-Data lake is used to store time series data and use machine learning models to predict
+### TỐI ƯU VẬN HÀNH CHUỖI CUNG ỨNG VỚI LAKEHOUSE PLATFORM
+
+#### Architecture
+
+![Architecture](./docs/data_lakehouse_architecture.png)
