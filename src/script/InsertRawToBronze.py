@@ -7,7 +7,7 @@ from pyspark.sql.functions import col, regexp_replace
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-logger = logging.getLogger("SparkJob")
+logger = logging.getLogger("InsertRawToBronze")
 
 # Khởi tạo Spark Session với tên ứng dụng được cung cấp.
 def create_spark_session(app_name: str) -> SparkSession:
