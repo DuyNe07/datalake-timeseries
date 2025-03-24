@@ -1,0 +1,23 @@
+# Metabase connections
+databases:
+  - name: Trino Silver Data
+    engine: presto
+    details:
+      host: trino
+      port: 8060
+      catalog: datalake
+      schema: silver
+      user: admin
+      ssl: false
+      advanced-options: true
+      
+      additional-options: "user-impersonation-enabled=false"
+  - name: Cube Analytics
+    engine: postgres 
+    details:
+      host: cube
+      port: 5432
+      dbname: cubedb
+      user: cube
+      password: cube
+      ssl: false
