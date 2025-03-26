@@ -10,8 +10,8 @@ databases:
       user: admin
       ssl: false
       advanced-options: true
-      
       additional-options: "user-impersonation-enabled=false"
+      
   - name: Cube Analytics
     engine: postgres 
     details:

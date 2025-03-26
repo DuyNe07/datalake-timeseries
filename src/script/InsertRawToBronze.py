@@ -2,8 +2,8 @@ import os
 import re
 import logging
 from functools import reduce
-from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, regexp_replace
+from pyspark.sql import SparkSession, DataFrame     # type: ignore
+from pyspark.sql.functions import col, regexp_replace   # type: ignore
 
 # Thiết lập logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -97,7 +97,7 @@ def main():
         create_namespace(spark, "datalake.bronze")
         
         # Xử lý từng thư mục trong thư mục gốc
-        base_dir = "/src/data/"
+        base_dir = "/src/data/raw/"
         for folder in os.listdir(base_dir):
             folder_path = os.path.join(base_dir, folder)
             if os.path.isdir(folder_path):

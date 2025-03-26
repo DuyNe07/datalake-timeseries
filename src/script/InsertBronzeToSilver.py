@@ -1,7 +1,7 @@
 import logging
-from pyspark.sql import SparkSession, DataFrame
-from pyspark.sql.functions import col, last, row_number
-from pyspark.sql.window import Window
+from pyspark.sql import SparkSession, DataFrame  # type: ignore
+from pyspark.sql.functions import col, last, row_number, to_timestamp   # type: ignore
+from pyspark.sql.window import Window   # type: ignore
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -26,32 +26,29 @@ def get_bronze_tables(spark: SparkSession) -> list:
 
 def process_bronze_table(spark: SparkSession, bronze_table: str) -> DataFrame:
     logger.info(f"Processing bronze table: {bronze_table}")
-    
-    # Read data from the bronze table
+
     try:
         df = spark.table(bronze_table)
     except Exception as e:
         logger.error(f"Error reading bronze table {bronze_table}: {e}", exc_info=True)
         return None
-    
-    # Step 1: Select required columns
+
     df = df.select('Date', 'Price', 'Open', 'High', 'Low')
-    
-    # Step 2: Convert Date column to timestamp
-    df = df.withColumn("Date", col("Date").cast("timestamp"))
-    
-    # Step 3: Remove duplicate rows
+
+    df = df.withColumn("Date", to_timestamp(col("Date"), "MM/dd/yyyy").cast("date"))
     df = df.dropDuplicates()
-    
-    # Step 4: Replace null values using forward fill
+
     windowSpec = Window.orderBy("Date").rowsBetween(Window.unboundedPreceding, 0)
     for column in ['Price', 'Open', 'High', 'Low']:
         df = df.withColumn(column, last(col(column), ignorenulls=True).over(windowSpec))
-    
-    # Step 5: Add an auto-increment ID column
+
     windowSpecId = Window.orderBy("Date")
     df = df.withColumn("ID", row_number().over(windowSpecId))
     df = df.select("ID", "Date", "Price", "Open", "High", "Low")
+    df = df.orderBy("ID")
+
+    for column in ['Price', 'Open', 'High', 'Low']:
+        df = df.withColumn(column, col(column).cast("double"))
     
     logger.info(f"Finished processing {bronze_table}")
     return df

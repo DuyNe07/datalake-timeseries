@@ -7,3 +7,5 @@ spark-iceberg/bin/*.tgz
 spark-iceberg/jars/*.jar
 src/logs
 /spark/jars/*.jar
+/metabase
+*.log
