@@ -1,5 +1,4 @@
 services:
-
   version-store: # version store for nessie
     image: postgres
     hostname: version-store
@@ -19,7 +18,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+      
   nessie: # catalog for iceberg
     image: ghcr.io/projectnessie/nessie
     container_name: nessie
@@ -66,14 +65,14 @@ services:
   spark:
     image: spark-iceberg
     container_name: spark
-    build: spark/
+    build: spark-iceberg/
     environment:
       - AWS_ACCESS_KEY_ID=admin
       - AWS_SECRET_ACCESS_KEY=admin123
       - AWS_REGION=us-east-1
     volumes:
       - ./src:/src
-      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+      - ./spark-iceberg/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     ports:
       - 8888:8888 # Spark notebook port
       - 7077:7077 # Spark port
@@ -86,7 +85,7 @@ services:
       # - 10099:10099 # Kyuubi web ui port
     networks:
       - datalake
-      
+
   minio: # Storage
       hostname: minio
       image: 'minio/minio'
@@ -107,7 +106,7 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
-        
+
   mc: # minio client for creating default bucket 
     image: minio/mc
     container_name: mc

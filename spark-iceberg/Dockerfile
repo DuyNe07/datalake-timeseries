@@ -8,7 +8,8 @@ ENV AWSSDK_VERSION=2.20.18
 
 # Optional path env variables
 ENV SPARK_HOME=/opt/spark
-ENV BIN_DIR=/bin
+ENV BIN_DIR=/usr/bin
+ENV DBT_DIR=/src/dbt
 ENV NOTEBOOKS_DIR=/src/notebooks
 ENV SPARK_EVENTS_DIR=/tmp/spark-events
 
@@ -20,8 +21,7 @@ ENV INSTALL_DIR=/tmp/install
 # Create dirs
 RUN mkdir -p ${SPARK_HOME} ${DBT_DIR} ${NOTEBOOKS_DIR} \
              ${SPARK_EVENTS_DIR} ${INSTALL_DIR} \
-            /root/.ipython/profile_default/startup \
-            /scripts
+            /root/.ipython/profile_default/startup
 
 # install core packages 
 RUN apt-get update && apt-get upgrade -y && \
@@ -47,7 +47,7 @@ RUN apt-get update && apt-get upgrade -y && \
 WORKDIR ${INSTALL_DIR}
 
 # Install python deps
-COPY conf/requirements.txt . 
+COPY conf/requirements.txt .
 RUN pip3 install --no-cache-dir -r requirements.txt \
     && rm requirements.txt
 
@@ -73,7 +73,7 @@ RUN curl https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip -o awscliv2.zi
 WORKDIR ${SPARK_HOME}    
 
 COPY jars/*.jar ${SPARK_HOME}/jars
-COPY scripts/entrypoint.sh /scripts/
+COPY scripts/entrypoint.sh ${BIN_DIR}
 COPY conf/notebook ${BIN_DIR}/notebook
 COPY conf/notebook ${BIN_DIR}/pyspark-notebook
 COPY conf/.pyiceberg.yaml /root/.pyiceberg.yaml
@@ -83,7 +83,8 @@ RUN chmod u+x ${SPARK_HOME}/* \
   && chmod u+x ${SPARK_HOME}/bin/* \
   && chmod u+x ${BIN_DIR}/notebook \
   && chmod u+x ${BIN_DIR}/pyspark-notebook \
-  && chmod u+x /scripts/entrypoint.sh
+  && chmod u+x ${BIN_DIR}/entrypoint.sh
+
 
 EXPOSE 3070
 EXPOSE 8888
@@ -94,5 +95,5 @@ EXPOSE 10000
 EXPOSE 10009
 EXPOSE 18080  
 
-ENTRYPOINT ["/scripts/entrypoint.sh"]
+ENTRYPOINT ["/spark-iceberg/scripts/entrypoint.sh"]
 CMD ["notebook"]
