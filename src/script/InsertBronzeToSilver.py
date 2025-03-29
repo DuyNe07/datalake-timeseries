@@ -1,9 +1,11 @@
 import logging
 from pyspark.sql import SparkSession, DataFrame  # type: ignore
-from pyspark.sql.functions import col, last, row_number, to_timestamp   # type: ignore
+from pyspark.sql.functions import col, last, row_number, to_timestamp  # type: ignore
 from pyspark.sql.window import Window   # type: ignore
+from nessie.current_commit import create_commit, save_commit_info
+from nessie.rollback import rollback_to_commit
 
-# Setup logging
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("BronzeToSilver")
 
@@ -35,7 +37,8 @@ def process_bronze_table(spark: SparkSession, bronze_table: str) -> DataFrame:
 
     df = df.select('Date', 'Price', 'Open', 'High', 'Low')
 
-    df = df.withColumn("Date", to_timestamp(col("Date"), "MM/dd/yyyy").cast("date"))
+    # df = df.withColumn("Date", to_timestamp(col("Date"), "MM/dd/yyyy").cast("date"))
+    df = df.withColumn("Date", to_timestamp(col("Date"), "MM/dd/yyyy"))
     df = df.dropDuplicates()
 
     windowSpec = Window.orderBy("Date").rowsBetween(Window.unboundedPreceding, 0)
@@ -49,7 +52,7 @@ def process_bronze_table(spark: SparkSession, bronze_table: str) -> DataFrame:
 
     for column in ['Price', 'Open', 'High', 'Low']:
         df = df.withColumn(column, col(column).cast("double"))
-    
+
     logger.info(f"Finished processing {bronze_table}")
     return df
 
@@ -72,10 +75,8 @@ def process_tables(spark: SparkSession, tables: list):
         silver_table_full = f"datalake.silver.{table_name}"
         
         try:
-            # Process the table data
             df_processed = process_bronze_table(spark, bronze_table_full)
             if df_processed is not None:
-                # Write to silver table
                 write_to_iceberg(df_processed, silver_table_full)
                 logger.info(f"Successfully processed {table_name}")
             else:
@@ -84,28 +85,42 @@ def process_tables(spark: SparkSession, tables: list):
             logger.error(f"Error processing table {table_name}: {e}", exc_info=True)
 
 def main():
+    current_time = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    start_commit_name = f"LoadRawToBronze_{current_time}"
+    initial_commit_hash = None
+
     try:
-        # Create Spark session
+        logger.info(f"Creating initial commit: {start_commit_name}")
+        create_commit(start_commit_name)
+        initial_commit_hash = save_commit_info(start_commit_name)
+
         spark = create_spark_session("Bronze_to_Silver")
-        
-        # Create silver namespace if not exists
         create_namespace(spark, "datalake.silver")
-        
-        # Get all bronze tables
+
         bronze_tables = get_bronze_tables(spark)
         
         if bronze_tables:
-            # Process each bronze table and write to silver
             process_tables(spark, bronze_tables)
             logger.info("All tables processed and written to silver successfully.")
         else:
             logger.error("No tables found to process.")
+
+        end_commit_name = f"LoadRawToBronze_{current_time}_COMPLETED"
+        create_commit(end_commit_name)
+        logger.info("All folders processed successfully.")
         
     except Exception as e:
         logger.error(f"Job failed due to: {e}", exc_info=True)
+
+        if initial_commit_hash:
+            logger.info(f"Rolling back to initial commit: {initial_commit_hash}")
+            rollback_to_commit(initial_commit_hash)
+        else:
+            logger.error("No initial commit hash saved, cannot rollback")
     finally:
-        spark.stop()
-        logger.info("Spark Session stopped.")
+        if 'spark' in locals():
+            spark.stop()
+            logger.info("Spark Session stopped.")
 
 if __name__ == "__main__":
     main()
