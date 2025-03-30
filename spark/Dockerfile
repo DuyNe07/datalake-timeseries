@@ -85,6 +85,7 @@ RUN chmod u+x ${SPARK_HOME}/* \
   && chmod u+x ${BIN_DIR}/pyspark-notebook \
   && chmod u+x ${BIN_DIR}/entrypoint.sh
 
+RUN ls -la ${BIN_DIR}/entrypoint.sh || echo "Entrypoint script is missing!"
 
 EXPOSE 3070
 EXPOSE 8888
