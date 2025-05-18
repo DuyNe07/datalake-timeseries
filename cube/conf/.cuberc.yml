@@ -1,0 +1,8 @@
+# cube/conf/.cuberc.yml
+driverFactory:
+  type: trino
+  database: datalake
+  host: trino
+  port: 8060
+  catalog: datalake
+  schema: gold

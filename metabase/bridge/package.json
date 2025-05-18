@@ -1,0 +1,15 @@
+{
+  "name": "cube-metabase-bridge",
+  "version": "1.0.0",
+  "description": "Bridge service to connect Metabase with Cube.js",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "@cubejs-client/core": "^0.31.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.5"
+  }
+}

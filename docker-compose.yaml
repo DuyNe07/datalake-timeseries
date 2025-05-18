@@ -1,0 +1,186 @@
+services:
+  version-store: # version store for nessie
+    image: postgres
+    hostname: version-store
+    container_name: version-store
+    environment:
+      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=catalog_nessie
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./volumes/catalog_nessie_db:/var/lib/postgresql/data
+    networks:
+      - datalake
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d catalog_nessie -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  nessie: # catalog for iceberg
+    image: ghcr.io/projectnessie/nessie
+    container_name: nessie
+    hostname: nessie
+    environment:
+      - nessie.version.store.type=JDBC2
+      - nessie.version.store.persist.jdbc.datasource=postgresql
+      - quarkus.datasource.postgresql.jdbc.url=jdbc:postgresql://version-store:5432/catalog_nessie
+      - quarkus.datasource.postgresql.username=admin
+      - quarkus.datasource.postgresql.password=admin123
+      - nessie.catalog.default-warehouse=warehouse
+      - nessie.catalog.warehouses.warehouse.location=s3://datalake/
+      - nessie.catalog.service.s3.default-options.endpoint=http://minio:9000/
+      - nessie.catalog.service.s3.default-options.access-key=urn:nessie-secret:quarkus:nessie.catalog.secrets.access-key
+      - nessie.catalog.secrets.access-key.name=admin
+      - nessie.catalog.secrets.access-key.secret=admin123
+      - nessie.catalog.service.s3.default-options.region=us-east-1
+      - nessie.server.authentication.enabled=false
+      - nessie.catalog.service.s3.default-options.path-style-access=true
+    ports:
+      - "19120:19120"
+    networks:
+      - datalake
+    depends_on:
+      - version-store
+      - minio
+
+  trino: # query engine
+    image: 'trinodb/trino:latest'
+    container_name: trino
+    hostname: trino
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+    ports:
+      - '8060:8060'
+    volumes:
+      - ./trino/etc:/etc/trino
+    networks:
+      - datalake
+    depends_on:
+      - nessie
+
+  spark:
+    image: spark-iceberg
+    container_name: spark
+    build: spark/
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+    volumes:
+      - ./src:/src
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    ports:
+      - 8888:8888 # Spark notebook port
+      - 7077:7077 # Spark port
+      - 8061:8061 # Spark master web ui port
+      - 8062:8062 # Spark worker web ui port
+      - 10000:10000 # Thrift ODBC/JDBC port
+      - 10009:10009 # Kyuubi JDBC port
+      - 18080:18080 # Spark history web ui port
+      - 9083:9083 # Metastore thrift
+      # - 10099:10099 # Kyuubi web ui port
+    networks:
+      - datalake
+      
+  minio: # Storage
+      hostname: minio
+      image: 'minio/minio'
+      container_name: minio
+      ports:
+        - '9000:9000'
+        - '9001:9001'
+      volumes:
+        - ./volumes/minio:/data
+      environment:
+        - MINIO_ROOT_USER=admin
+        - MINIO_ROOT_PASSWORD=admin123
+      command: server /data --console-address ":9001"
+      networks:
+        - datalake
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+        
+  mc: # minio client for creating default bucket 
+    image: minio/mc
+    container_name: mc
+    hostname: mc
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+    networks:
+      - datalake
+    volumes:
+      - ./minio/init_minio.sh:/init_minio.sh 
+    entrypoint: ["/bin/sh", "-c", "/init_minio.sh"]
+    depends_on:
+      minio:
+        condition: service_healthy
+  cube:
+    image: cubejs/cube:latest
+    container_name: cube
+    hostname: cube
+    volumes:
+      - ./cube:/cube/conf
+    environment:
+      - CUBEJS_DEV_MODE=true
+      - NODE_ENV=production
+      # Core settings
+      - CUBEJS_API_SECRET=DuyBao21133
+      - CUBEJS_DB_TYPE=trino
+      - CUBEJS_DB_HOST=trino
+      - CUBEJS_DB_PORT=8060
+      - CUBEJS_DB_NAME=gold
+      - CUBEJS_DB_TRINO_CATALOG=datalake
+      - CUBEJS_DB_TRINO_SCHEMA=gold
+      - CUBEJS_REST_API=true
+      - CUBEJS_SCHEDULED_REFRESH_DEFAULT=true
+      - CUBEJS_EXTERNAL_DEFAULT=true
+      - CUBEJS_CORS_ORIGIN=*
+      - CUBEJS_SCHEMA_PATH=/cube/conf/model
+      
+      # Basic CubeStore connection
+      - CUBEJS_CUBESTORE_HOST=cubestore
+      - CUBEJS_CUBESTORE_PORT=3030
+      
+      # PostgreSQL interface settings
+      - CUBEJS_PG_SQL_PORT=3245
+      - CUBEJS_PG_SQL_USER=cube_user
+      - CUBEJS_PG_SQL_PASS=cube_password123
+
+      - CUBEJS_DB_SOURCE=datalake
+    ports:
+      - 3000:3000
+      - 4000:4000
+      - 3245:3245
+    networks:
+      - datalake
+    depends_on:
+      - trino
+      - cubestore
+      
+  cubestore:
+    image: cubejs/cubestore:latest
+    container_name: cubestore
+    hostname: cubestore
+    ports:
+      - "3307:3030"
+    volumes:
+      - ./cubestore_data:/var/lib/cubestore/data
+    environment:
+      - CUBESTORE_REMOTE_DIR=/var/lib/cubestore/data
+      - CUBESTORE_HTTP_BIND_ADDR=0.0.0.0:3030
+    networks:
+      - datalake
+
+networks:
+  datalake:
+    driver: bridge
