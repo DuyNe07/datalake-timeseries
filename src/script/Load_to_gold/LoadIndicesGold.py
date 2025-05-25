@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# LoadIndicesGold.py - Silver to Gold - Stock Indices
+# Insert_gold_SP500_ToGold.py - Silver to Gold - Gold and US Bonds
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional
@@ -11,7 +11,7 @@ from pyspark.sql.window import Window  # type: ignore
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger("SilverToGold_Indices")
+logger = logging.getLogger("SilverToGold_GoldIndices")
 
 # Constants
 SOURCE_CATALOG = "datalake"
@@ -81,7 +81,7 @@ def list_tables(spark: SparkSession, namespace: str) -> List[str]:
         return []
 
 def read_silver_table(spark: SparkSession, table_name: str) -> Optional[DataFrame]:
-    """Read a table from silver layer, selecting only Date and Price columns"""
+    """Read a table from silver layer, selecting only date and price columns"""
     full_table_name = f"{SOURCE_NAMESPACE}.{table_name}"
     logger.info(f"Reading from silver table: {full_table_name}")
     
@@ -100,10 +100,10 @@ def read_silver_table(spark: SparkSession, table_name: str) -> Optional[DataFram
             logger.info(f"Available columns: {df.columns}")
             return None
         
-        # Select only Date and Price columns
+        # Select only date and price columns
         result_df = df.select(col(DATE_COLUMN), col(PRICE_COLUMN))
         
-        # Rename Price column to table name
+        # Rename price column to table name
         result_df = result_df.withColumnRenamed(PRICE_COLUMN, table_name)
         
         logger.info(f"Successfully read {result_df.count()} rows from {full_table_name}")
@@ -114,23 +114,23 @@ def read_silver_table(spark: SparkSession, table_name: str) -> Optional[DataFram
         return None
 
 def join_dataframes(dfs: List[DataFrame]) -> Optional[DataFrame]:
-    """Join all dataframes on Date column using reduce and add ID column"""
+    """Join all dataframes on date column using reduce and add ID column"""
     if not dfs:
         logger.error("No dataframes to join")
         return None
     
-    logger.info(f"Joining {len(dfs)} dataframes on Date column")
+    logger.info(f"Joining {len(dfs)} dataframes on date column")
     try:
         # Use reduce to join all dataframes
         final_df = reduce(lambda df1, df2: df1.join(df2, on=DATE_COLUMN, how='outer'), dfs)
         
-        # Order by Date first
+        # Order by date first
         final_df = final_df.orderBy(DATE_COLUMN)
         
         # Add ID column that counts from 1, ordered by date
         logger.info("Adding sequential ID column ordered by date")
         window_spec = Window.orderBy(DATE_COLUMN)
-        final_df = final_df.withColumn("id", row_number().over(window_spec))
+        final_df = final_df.withColumn(ID_COLUMN, row_number().over(window_spec))
         
         # Add partition columns
         final_df = (
@@ -191,10 +191,10 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
         raise
 
 def main():
-    """Main function to orchestrate the ETL process for stock indices"""
+    """Main function to orchestrate the ETL process"""
     spark = None
     start_time = datetime.now()
-    logger.info("Starting Silver to Gold ETL Job for Stock Indices")
+    logger.info("Starting Silver to Gold ETL Job for Gold and US Bonds")
     
     try:
         # Initialize Spark
@@ -203,8 +203,9 @@ def main():
         # Ensure target namespace exists
         create_namespace_if_not_exists(spark, TARGET_NAMESPACE)
         
-        # Define tables to process - All index tables
-        tables_to_join = ['russell2000', 'dow_jones', 'msci_world', 'nasdaq100', 's_p500', 'gold']
+        # Define tables to process
+        tables_to_join = ['gold', 'russell2000', 'dow_jones', 'msci_world', 'nasdaq100', 's_p500']
+
         
         # Read tables and prepare for joining
         dataframes = []

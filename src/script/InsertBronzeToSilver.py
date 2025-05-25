@@ -7,7 +7,7 @@ from typing import List, Optional, Tuple, Dict
 from pyspark.sql import SparkSession, DataFrame # type: ignore
 from pyspark.sql.functions import (col, to_timestamp, year, month, regexp_replace, when, # type: ignore
                                   date_format, to_date, sequence, explode, lit, min as min_,
-                                  max as max_, count, last, row_number, concat) # type: ignore
+                                  max as max_, count, last, row_number, concat, current_timestamp) # type: ignore
 import pyspark.sql.functions as F # type: ignore
 from pyspark.sql.window import Window # type: ignore
 from pyspark.sql.types import StringType, DoubleType, TimestampType, DateType # type: ignore
@@ -25,7 +25,7 @@ START_DATE = "1995-01-05"  # Start date for continuous date generation
 END_DATE = "2025-03-07"    # End date for continuous date generation
 
 # Financial columns to be processed
-FINANCIAL_COLUMNS = ["price", "price_tip", "adj_price", "open", "high", "low", "volume", "change"]
+FINANCIAL_COLUMNS = ["price", "open", "high", "low", "volume", "cpi", "inflation_rate", "interest_rate"]
 
 # Date column
 DATE_COLUMN = "date"
@@ -117,20 +117,10 @@ def clean_and_cast_columns(df: DataFrame) -> DataFrame:
     
     # Ensure date column is date type
     if DATE_COLUMN in df.columns:
-        date_type = str(df.schema[DATE_COLUMN].dataType)
-        logger.info(f"Date column type: {date_type}")
-        
-        if not (isinstance(df.schema[DATE_COLUMN].dataType, DateType) or 
-                isinstance(df.schema[DATE_COLUMN].dataType, TimestampType)):
-            logger.info("Converting date column to date type")
-            
-            # Try multiple date formats
-            df = df.withColumn(
+        df = df.withColumn(
                 DATE_COLUMN,
                 F.coalesce(
-                    to_timestamp(col(DATE_COLUMN), "MM/dd/yyyy"),
-                    to_timestamp(col(DATE_COLUMN), "yyyy-MM-dd"),
-                    to_timestamp(col(DATE_COLUMN), "MMM d, yyyy")
+                    to_timestamp(col(DATE_COLUMN), "MM-dd-yyyy")
                 ).cast("date")
             )
     
@@ -208,7 +198,7 @@ def segment_based_forward_fill(df: DataFrame, table_name: str) -> DataFrame:
     
     # Identify columns that need filling
     columns_to_fill = [c for c in df.columns 
-                      if c != DATE_COLUMN and c not in ['year', 'month', 'source_file']]
+                      if c != DATE_COLUMN and c not in ['year', 'month', 'source_file', 'inserted']]
     
     # Add segment columns for more granular forward fill
     df = df.withColumn("year_segment", year(col(DATE_COLUMN)))
@@ -221,8 +211,8 @@ def segment_based_forward_fill(df: DataFrame, table_name: str) -> DataFrame:
     # Apply forward fill separately for each column
     for column in columns_to_fill:
         # Check nulls before fill
-        null_count = df.filter(col(column).isNull()).count()
-        logger.info(f"Column '{column}' has {null_count} NULL values before fill")
+        #null_count = df.filter(col(column).isNull()).count()
+        #logger.info(f"Column '{column}' has {null_count} NULL values before fill")
         
         # Create window specs for each segment granularity
         window_spec_all = Window.orderBy(DATE_COLUMN).rowsBetween(Window.unboundedPreceding, 0)
@@ -255,8 +245,8 @@ def segment_based_forward_fill(df: DataFrame, table_name: str) -> DataFrame:
         df = df.drop(f"{column}_filled_month", f"{column}_filled_quarter", f"{column}_filled_year")
         
         # Check nulls after fill
-        null_count = df.filter(col(column).isNull()).count()
-        logger.info(f"Column '{column}' has {null_count} NULL values after fill")
+        #null_count = df.filter(col(column).isNull()).count()
+        #logger.info(f"Column '{column}' has {null_count} NULL values after fill")
     
     # Drop temporary segment columns
     return df.drop("year_segment", "quarter_segment", "month_segment")
@@ -289,7 +279,7 @@ def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: st
     
     # 6. Validate results
     columns_to_check = [c for c in result_df.columns 
-                       if c != DATE_COLUMN and c not in ['year', 'month', 'source_file']]
+                       if c != DATE_COLUMN and c not in ['year', 'month', 'source_file', 'inserted']]
     
     for column in columns_to_check:
         null_count = result_df.filter(col(column).isNull()).count()
@@ -355,8 +345,10 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
     logger.info(f"Partitioning by: {partition_by}")
     
     # Check for duplicate columns
+    df = df.drop(col('inserted'))
     df = check_duplicate_columns(df)
-    
+    df = df.withColumn("inserted", current_timestamp())
+
     try:
         # Prepare writer
         writer = (
@@ -455,7 +447,7 @@ def main():
             except Exception as e:
                 logger.error(f"Failed to process table {table_name}")
                 failed_count += 1
-        
+
         # Summarize results
         logger.info("=== Job Summary ===")
         logger.info(f"Total tables found: {len(bronze_tables)}")

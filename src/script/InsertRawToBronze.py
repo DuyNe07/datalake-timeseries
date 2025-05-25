@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Optional, Tuple, Dict
 
 from pyspark.sql import SparkSession, DataFrame # type: ignore
-from pyspark.sql.functions import col, input_file_name, year, month, to_timestamp # type: ignore
+from pyspark.sql.functions import col, input_file_name, year, month, to_timestamp, current_timestamp # type: ignore
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -18,18 +18,7 @@ BASE_RAW_DATA_DIR = "/src/data/raw/"
 TARGET_CATALOG = "datalake"
 TARGET_NAMESPACE = f"{TARGET_CATALOG}.bronze"
 DATE_FORMATS = [
-    "yyyy-MM-dd'T'HH:mm:ss.SSSZ", 
-    "yyyy-MM-dd'T'HH:mm:ssZ", 
-    'yyyy-MM-dd HH:mm:ss.SSS', 
-    'yyyy-MM-dd HH:mm:ss', 
-    'MM/dd/yyyy HH:mm:ss', 
-    'MM/dd/yyyy', 
-    'yyyy-MM-dd', 
-    'dd/MM/yyyy', 
-    'dd-MM-yyyy', 
-    'MM-dd-yyyy',
-    'MMM d, yyyy',
-    'MMMM d, yyyy'
+    'MM-dd-yyyy'
 ]
 
 # Standard column mapping
@@ -39,7 +28,7 @@ STANDARD_COLUMNS = {
     'open': ['open', 'Open'],
     'high': ['high', 'High'],
     'low': ['low'],
-    'volume': ['vol', 'vol.', 'volume', 'Volume'],
+    'volume': ['vol', 'vol.', 'volume', 'Volume', 'Vol.'],
     'change': ['change', 'change %'],
     'id': ['id'],
     'adj': ['adj', 'Adj'],
@@ -192,7 +181,7 @@ def read_all_csv_in_folder(spark: SparkSession, folder_path: str) -> Optional[Da
         df = (
             spark.read
             .option("header", "true")
-            .option("inferSchema", "true")
+            .option("inferSchema", "false")
             .option("mode", "PERMISSIVE")
             .option("multiLine", "true")
             .option("escape", "\"")
@@ -332,6 +321,8 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
     
     # Check for duplicate column names before writing
     df = check_duplicate_columns(df)
+    df = df.withColumn("inserted", current_timestamp())
+    #df = df.drop(col('c5'))
     
     try:
         writer = (
@@ -444,6 +435,7 @@ def main():
         failed_count = 0
         
         for folder_name in folders_to_process:
+#            if folder_name == 'US 2 Year Bond':
             folder_path = os.path.join(BASE_RAW_DATA_DIR, folder_name)
             try:
                 process_folder(spark, folder_path, folder_name)
@@ -451,7 +443,7 @@ def main():
             except Exception as e:
                 logger.error(f"An unexpected error occurred processing folder '{folder_name}'. See previous logs.")
                 failed_count += 1
-        
+
         # Summarize results
         logger.info("--- Job Summary ---")
         logger.info(f"Total folders found: {len(folders_to_process)}")
