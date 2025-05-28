@@ -273,9 +273,11 @@ def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: st
     result_df = segment_based_forward_fill(full_df, table_name)
     
     # 5. Add/ensure year and month columns for partitioning
-    if "year" not in result_df.columns or "month" not in result_df.columns:
-        result_df = result_df.withColumn("year", year(col(DATE_COLUMN)))
-        result_df = result_df.withColumn("month", month(col(DATE_COLUMN)))
+    result_df = (
+        result_df
+        .withColumn("year", year(col(DATE_COLUMN)))
+        .withColumn("month", month(col(DATE_COLUMN)))
+    )
     
     # 6. Validate results
     columns_to_check = [c for c in result_df.columns 

@@ -14,7 +14,7 @@ from RawToBronze import main as run_raw_to_bronze
 
 default_args = {
     'owner': 'airflow',
-    'retries': 1,
+    'retries': 3,
     'retry_delay': timedelta(minutes=5),
 }
 
@@ -22,9 +22,8 @@ with DAG(
     dag_id='daily_yahoo_scraper_and_load_to_bronze',
     default_args=default_args,
     description='Daily scrape from Yahoo and load to Bronze',
-    schedule_interval='0 21 * * 1-5',
-    #schedule_interval = None,
-    start_date=datetime(2025, 5, 26),
+    schedule_interval='0 21 * * *',  # Runs daily at 4:00 AM
+    start_date=datetime(2025, 5, 25),
     catchup=False,
     max_active_runs=1,
 ) as dag:
@@ -32,8 +31,8 @@ with DAG(
     start = EmptyOperator(task_id='start')
 
     def run_scraper_callable(**kwargs):
-        #start_date_str = datetime.today().strftime("%d-%m-%Y")
-        start_date_str = '07-03-2025'
+        start_date = datetime.today() - timedelta(days=1)
+        start_date_str = start_date.strftime("%d-%m-%Y")
         output_dir = "/src/data/raw"
         run_yahoo_scraper(output_dir, start_date_str)
 

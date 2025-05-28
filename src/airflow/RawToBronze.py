@@ -5,8 +5,8 @@ from datetime import datetime
 from typing import List, Optional, Tuple, Dict
 
 from pyspark.sql import SparkSession, DataFrame # type: ignore
-from pyspark.sql.functions import col, input_file_name, year, month, to_timestamp, current_timestamp # type: ignore
-
+from pyspark.sql.functions import col, input_file_name, year, month, to_timestamp, current_timestamp, date_format # type: ignore
+from pyspark.sql.utils import AnalysisException
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("InsertRawToBronze")
@@ -17,16 +17,16 @@ TARGET_CATALOG = "datalake"
 TARGET_NAMESPACE = f"{TARGET_CATALOG}.bronze"
 DATE_FORMATS = [
     'yyyy-MM-dd',
-    'dd-MM-yyyy'
+    'MM-dd-yyyy'
 ]
 
 # Standard column mapping
 STANDARD_COLUMNS = {
-    'date': ['date', 'datetime', 'time'],
+    'date': ['Date', 'datetime', 'time'],
     'price': ['price', 'close'],
     'open': ['open', 'Open'],
     'high': ['high', 'High'],
-    'low': ['low'],
+    'low': ['Low'],
     'volume': ['vol', 'vol.', 'volume', 'Volume', 'Vol.'],
     'change': ['change', 'change %'],
     'id': ['id'],
@@ -212,6 +212,11 @@ def read_all_csv_in_folder(spark: SparkSession, folder_path: str) -> Optional[Da
             logger.warning(f"No data found in CSV files matching pattern {csv_path_pattern} at {folder_path}")
             return None
         
+        df = spark.createDataFrame(
+            df.rdd.zipWithIndex().filter(lambda row_index: row_index[1] > 0).map(lambda row_index: row_index[0]),
+            schema=df.schema
+        )
+
         # Add source file name column
         df = df.withColumn("_source_file", input_file_name())
         
@@ -333,14 +338,19 @@ def check_duplicate_columns(df: DataFrame) -> DataFrame:
     
     return df
 
-def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
+def table_exists(spark: SparkSession, table_name: str) -> bool:
+    try:
+        spark.table(table_name)
+        return True
+    except AnalysisException:
+        return False
+
+def write_to_iceberg(spark: SparkSession, df: DataFrame, table_name: str, partition_by: List[str]):
     """Write DataFrame to Iceberg table"""
     logger.info(f"Starting write operation to Iceberg table: {table_name}")
     logger.info(f"Partitioning by: {partition_by}")
     logger.info(f"Write mode: append")
     logger.info(f"DataFrame contains {df.count()} rows to write")
-
-    print(df.show(5))
     
     # Check for duplicate column names before writing
     df = check_duplicate_columns(df)
@@ -348,9 +358,12 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
 
     if any(sub in table_name for sub in ['inflation', 'interest']):
         df = df.drop(col('_source_file'))
-    elif not any(sub in table_name for sub in ['us_dollar', 'russell2000', 'oil', 'dow_jones', 'usd_vnd', 'nasdaq100']):
+    elif not any(sub in table_name for sub in ['us_dollar', 'russell2000', 'oil', 'dow_jones', 'usd_vnd', 'nasdaq100', 'us_5_year_bond']):
         logger.info("Dropping column 'volume'")
         df = df.drop(col("volume"))
+
+    print(df.show(5))
+    
 
     try:
         writer = (
@@ -362,21 +375,14 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
         )
 
         if partition_by and all(p in df.columns for p in partition_by):
-            # Ensure partition columns have valid data
-            null_partition_count = df.filter(
-                ' OR '.join([f"{p} IS NULL" for p in partition_by])
-            ).count()
-            
-            if null_partition_count > 0:
-                logger.warning(f"{null_partition_count} rows have NULL partition values")
-            
-            if null_partition_count < df.count():  # Only partition if some rows have valid values
+            if not table_exists(spark, table_name):
+                # Apply partitioning only if table does not yet exist
                 writer = writer.partitionBy(*partition_by)
-                logger.info(f"Partitioning by {partition_by}")
+                logger.info(f"Applying partitioning: {partition_by}")
             else:
-                logger.warning("Skipping partitioning as all partition columns contain NULL values")
+                logger.info("Table already exists, skipping partitioning on write")
         else:
-            logger.warning(f"Partition columns missing from DataFrame. Skipping partitioning.")
+            logger.warning("Partition columns missing or empty; skipping partitioning.")
         
         writer.saveAsTable(table_name)
         logger.info(f"Successfully wrote data to Iceberg table: {table_name}")
@@ -418,7 +424,7 @@ def process_folder(spark: SparkSession, folder_path: str, folder_name: str):
             return
             
         full_table_name = f"{TARGET_NAMESPACE}.{table_name}"
-        write_to_iceberg(df_partitioned, full_table_name, partition_cols)
+        write_to_iceberg(spark, df_partitioned, full_table_name, partition_cols)
         
         end_time = datetime.now()
         logger.info(f"--- Successfully processed folder '{folder_name}' in {end_time - start_time} ---")

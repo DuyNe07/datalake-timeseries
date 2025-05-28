@@ -1,14 +1,14 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Dict
 
 from pyspark.sql import SparkSession, DataFrame # type: ignore
 from pyspark.sql.functions import (col, to_timestamp, year, month, regexp_replace, when, # type: ignore
-                                  to_date, sequence, explode, min as min_, max as max_, count, last, concat, current_timestamp) # type: ignore
+                                  to_date, sequence, explode, min as min_, max as max_, count, last, concat, current_timestamp, rank, lit) # type: ignore
 import pyspark.sql.functions as F # type: ignore
 from pyspark.sql.window import Window # type: ignore
 from pyspark.sql.types import StringType, DoubleType, TimestampType, DateType # type: ignore
-
+from pyspark.sql.utils import AnalysisException
 # Logging setup
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("InsertBronzeToSilver")
@@ -18,7 +18,7 @@ SOURCE_CATALOG = "datalake"
 SOURCE_NAMESPACE = f"{SOURCE_CATALOG}.bronze"
 TARGET_CATALOG = "datalake"
 TARGET_NAMESPACE = f"{TARGET_CATALOG}.silver"
-START_DATE = ""
+START_DATE = "1995-01-05"
 END_DATE = datetime.today().date()
 
 # Financial columns to be processed
@@ -156,7 +156,7 @@ def analyze_data_distribution(df: DataFrame, table_name: str):
     
     # Check date distribution by year
     year_counts = df.groupBy(year(DATE_COLUMN).alias("year")).count().orderBy("year")
-    year_counts.show(25)
+    year_counts.tail(2)
     
     # Get min and max dates
     min_max_dates = df.agg(
@@ -233,7 +233,7 @@ def segment_based_forward_fill(df: DataFrame, table_name: str) -> DataFrame:
     # Drop temporary segment columns
     return df.drop("year_segment", "quarter_segment", "month_segment")
 
-def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: str) -> DataFrame:
+def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: str, new_date: str) -> DataFrame:
     """Process DataFrame with continuous dates and forward fill"""
     logger.info(f"Processing {table_name} with forward fill...")
     
@@ -255,9 +255,12 @@ def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: st
     result_df = segment_based_forward_fill(full_df, table_name)
     
     # 5. Add/ensure year and month columns for partitioning
-    if "year" not in result_df.columns or "month" not in result_df.columns:
-        result_df = result_df.withColumn("year", year(col(DATE_COLUMN)))
-        result_df = result_df.withColumn("month", month(col(DATE_COLUMN)))
+    
+    result_df = (
+        result_df
+        .withColumn("year", year(col(DATE_COLUMN)))
+        .withColumn("month", month(col(DATE_COLUMN)))
+    )
     
     # 6. Validate results
     columns_to_check = [c for c in result_df.columns 
@@ -270,11 +273,13 @@ def process_with_forward_fill(spark: SparkSession, df: DataFrame, table_name: st
     
     # 7. Show sample data
     logger.info("Sample data after processing:")
+    result_df = result_df.filter(col(DATE_COLUMN) >= to_date(lit(new_date)))
+
     result_df.orderBy(DATE_COLUMN).limit(3).show(truncate=False)
     
     return result_df
 
-def transform_data(spark: SparkSession, df: DataFrame, table_name: str) -> DataFrame:
+def transform_data(spark: SparkSession, df: DataFrame, table_name: str, new_date: str) -> DataFrame:
     """Main transformation function"""
     logger.info(f"Transforming data for table {table_name}")
     
@@ -282,16 +287,13 @@ def transform_data(spark: SparkSession, df: DataFrame, table_name: str) -> DataF
     window_spec = Window.partitionBy(DATE_COLUMN).orderBy(col("inserted").desc())
     df_ranked = df.withColumn("rnk", rank().over(window_spec)) 
     df = df_ranked.filter(col("rnk") == 1).drop("rnk")
-    
-    # 2. Filter to include only data from START_DATE onward
-    logger.info(f"Filtering data from {START_DATE} onward")
-    df = df.filter(col(DATE_COLUMN) >= START_DATE)
+    df.orderBy(DATE_COLUMN).limit(3).show(truncate=False)
 
     # 3. Clean and cast columns
     df = clean_and_cast_columns(df)    
     
     # 4. Process with continuous date range and forward fill
-    df = process_with_forward_fill(spark, df, table_name)
+    df = process_with_forward_fill(spark, df, table_name, new_date)
     
     return df
 
@@ -323,7 +325,14 @@ def check_duplicate_columns(df: DataFrame) -> DataFrame:
     
     return df
 
-def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
+def table_exists(spark: SparkSession, table_name: str) -> bool:
+    try:
+        spark.table(table_name)
+        return True
+    except AnalysisException:
+        return False
+
+def write_to_iceberg(spark: SparkSession, df: DataFrame, table_name: str, partition_by: List[str]):
     """Write DataFrame to Iceberg table"""
     logger.info(f"Writing to Iceberg table: {table_name}")
     logger.info(f"Partitioning by: {partition_by}")
@@ -343,17 +352,15 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
         )
         
         # Add partitioning if columns exist
-        if all(p in df.columns for p in partition_by):
-            # Check if partition columns have non-null values
-            null_count = df.filter(" OR ".join([f"{p} IS NULL" for p in partition_by])).count()
-            
-            if null_count < df.count():  # Only partition if some rows have valid values
+        if partition_by and all(p in df.columns for p in partition_by):
+            if not table_exists(spark, table_name):
+                # Apply partitioning only if table does not yet exist
                 writer = writer.partitionBy(*partition_by)
-                logger.info(f"Partitioning by {partition_by}")
+                logger.info(f"Applying partitioning: {partition_by}")
             else:
-                logger.warning("Skipping partitioning - all partition columns contain NULL values")
+                logger.info("Table already exists, skipping partitioning on write")
         else:
-            logger.warning(f"Partition columns {partition_by} not found in DataFrame")
+            logger.warning("Partition columns missing or empty; skipping partitioning.")
         
         # Write to table
         writer.saveAsTable(table_name)
@@ -387,13 +394,13 @@ def process_table(spark: SparkSession, table_name: str):
         # Read from silver
         target_table = f"{TARGET_NAMESPACE}.{table_name}"
         target_df = spark.table(target_table)
-        START_DATE = target_df.select(max_(col(DATE_COLUMN)).alias("max_date")).collect()[0]["max_date"]
+        new_date = str(target_df.select(max_(DATE_COLUMN).alias("max_date")).collect()[0]["max_date"])
 
         # 3. Transform data
-        df_transformed = transform_data(spark, df, table_name)
+        df_transformed = transform_data(spark, df, table_name, new_date)
         
         # 4. Write to silver
-        write_to_iceberg(df_transformed, target_table, ["year", "month"])
+        write_to_iceberg(spark, df_transformed, target_table, ["year", "month"])
         
         # 5. Log success
         end_time = datetime.now()

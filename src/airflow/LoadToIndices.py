@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from functools import reduce
 
 from pyspark.sql import SparkSession, DataFrame  # type: ignore
-from pyspark.sql.functions import col, year, month, row_number, to_timestamp, date_format  # type: ignore
+from pyspark.sql.functions import col, year, month, row_number, to_timestamp, date_format, rank  # type: ignore
 from pyspark.sql.window import Window  # type: ignore
 
 # Logging setup
@@ -80,24 +80,6 @@ def create_namespace_if_not_exists(spark: SparkSession, namespace: str):
     except Exception as e:
         logger.error(f"Failed to create namespace {namespace}: {str(e)}")
         raise
-
-def list_tables(spark: SparkSession, namespace: str) -> List[str]:
-    """List all tables in a namespace"""
-    try:
-        logger.info(f"Listing tables in namespace: {namespace}")
-        tables_df = spark.sql(f"SHOW TABLES IN {namespace}")
-        
-        if tables_df.count() == 0:
-            logger.warning(f"No tables found in namespace {namespace}")
-            return []
-            
-        table_names = [row.tableName for row in tables_df.select("tableName").collect()]
-        logger.info(f"Found {len(table_names)} tables: {', '.join(table_names)}")
-        return table_names
-        
-    except Exception as e:
-        logger.error(f"Failed to list tables in {namespace}: {str(e)}")
-        return []
 
 def read_silver_table(spark: SparkSession, table_name: str) -> Optional[DataFrame]:
     """Read a table from silver layer, selecting only date and price columns"""
@@ -173,7 +155,7 @@ def join_dataframes(dfs: List[DataFrame]) -> Optional[DataFrame]:
         logger.error(f"Error joining dataframes: {str(e)}")
         return None
 
-def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
+def write_to_iceberg(spark: SparkSession, df: DataFrame, table_name: str, partition_by: List[str]):
     """Write DataFrame to Iceberg table"""
     logger.info(f"Starting write operation to Iceberg table: {table_name}")
     logger.info(f"Partitioning by: {partition_by}")
@@ -247,7 +229,7 @@ def main():
             return
         
         # Write to gold layer
-        write_to_iceberg(joined_df, TARGET_TABLE, partition_by=["year", "month"])
+        write_to_iceberg(spark, joined_df, TARGET_TABLE, partition_by=["year", "month"])
         
         # Verify data can be read back
         try:

@@ -39,7 +39,9 @@ RUN pip install --user --no-cache-dir \
     statsmodels \
     matplotlib \
     boto3 \
-    pyarrow
+    pyarrow \
+    tensorflow \
+    selenium
 
 # Thiết lập biến môi trường để Airflow có thể tìm thấy Java
 ENV JAVA_HOME=/usr/lib/jvm/temurin-11-jdk-amd64

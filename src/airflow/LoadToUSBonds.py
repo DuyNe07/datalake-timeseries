@@ -6,7 +6,7 @@ from typing import List, Dict, Optional
 from functools import reduce
 
 from pyspark.sql import SparkSession, DataFrame  # type: ignore
-from pyspark.sql.functions import col, year, month, row_number, to_timestamp, date_format  # type: ignore
+from pyspark.sql.functions import col, year, month, row_number, to_timestamp, date_format, rank  # type: ignore
 from pyspark.sql.window import Window  # type: ignore
 
 # Logging setup
@@ -173,7 +173,7 @@ def join_dataframes(dfs: List[DataFrame]) -> Optional[DataFrame]:
         logger.error(f"Error joining dataframes: {str(e)}")
         return None
 
-def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
+def write_to_iceberg(spark: SparkSession, df: DataFrame, table_name: str, partition_by: List[str]):
     """Write DataFrame to Iceberg table"""
     logger.info(f"Starting write operation to Iceberg table: {table_name}")
     logger.info(f"Partitioning by: {partition_by}")
@@ -246,7 +246,7 @@ def main():
             return
         
         # Write to gold layer
-        write_to_iceberg(joined_df, TARGET_TABLE, partition_by=["year", "month"])
+        write_to_iceberg(spark, joined_df, TARGET_TABLE, partition_by=["year", "month"])
         
         # Verify data can be read back
         try:

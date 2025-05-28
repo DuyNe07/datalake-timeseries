@@ -30,7 +30,8 @@ START_DATE = "2025-03-08"
 P = 7
 TARGET_CATALOG = "datalake"
 TARGET_NAMESPACE = f"{TARGET_CATALOG}.gold"
-
+today = datetime.today().date()
+today = today.strftime('%d_%m_%Y')
 
 def create_spark_session(app_name: str) -> SparkSession:
     """Initialize Spark session with required configurations"""
@@ -70,52 +71,6 @@ def create_namespace_if_not_exists(spark: SparkSession, namespace: str):
         logger.error(f"Failed to create namespace {namespace}: {str(e)}")
         raise
 
-
-def generate_date_range_df(spark: SparkSession, start_date: str, num_days: int) -> DataFrame:
-    """
-    Generate a DataFrame with date range and id column
-    
-    Args:
-        spark: The SparkSession
-        start_date: The starting date in 'YYYY-MM-DD' format
-        num_days: Number of days to generate (including start date)
-    
-    Returns:
-        DataFrame with id and date columns
-    """
-    logger.info(f"Generating date range starting from {start_date} for {num_days} days")
-    
-    start = datetime.strptime(start_date, '%Y-%m-%d')
-    
-    # Generate dates for num_days (including start date)
-    dates = [(start + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(num_days)]
-    
-    # Calculate end date for logging
-    end_date = (start + timedelta(days=num_days-1)).strftime('%Y-%m-%d')
-    logger.info(f"Date range will be from {start_date} to {end_date} ({num_days} days)")
-    
-    # Create DataFrame with ID and dates
-    date_data = [(i+1, date) for i, date in enumerate(dates)]
-    
-    # Define schema
-    schema = StructType([
-        StructField(ID_COLUMN, LongType(), False),
-        StructField(DATE_COLUMN, StringType(), False)
-    ])
-    
-    # Create Spark DataFrame
-    df = spark.createDataFrame(date_data, schema)
-    
-    # Convert date string to timestamp
-    df = df.withColumn(DATE_COLUMN, to_date(col(DATE_COLUMN), "yyyy-MM-dd"))
-    
-    logger.info(f"Generated date range with {len(dates)} days")
-    logger.info("Date range sample data:")
-    df.show(5, truncate=False)
-    
-    return df
-
-
 def read_csv_with_model_suffix(spark: SparkSession, file_path: str, model_type: str) -> Optional[DataFrame]:
     """Read CSV file and rename columns with model type suffix"""
     logger.info(f"Reading {model_type} data from {file_path}")
@@ -149,38 +104,35 @@ def read_csv_with_model_suffix(spark: SparkSession, file_path: str, model_type: 
         return None
 
 
-def merge_future_data(date_df: DataFrame, srvar_df: DataFrame, varnn_df: DataFrame) -> DataFrame:
-    """Merge future dataframes with date dataframe using row index"""
-    logger.info("Merging future dataframes")
+def merge_future_data(srvar_df: DataFrame, varnn_df: DataFrame) -> DataFrame:
+    """Merge prediction dataframes with date dataframe using row index"""
+    logger.info("Merging prediction dataframes")
 
     try:
         # Instead of using window function, use a simpler approach
         # Add row index to the date dataframe
-        date_df = date_df.withColumn("row_id", monotonically_increasing_id())
+        srvar_df = srvar_df.withColumn("row_id", monotonically_increasing_id())
         
         # First join SrVAR data
         windowSpec = Window.orderBy("row_id")
         srvar_with_rownum = srvar_df.withColumn("row_num", row_number().over(windowSpec))
-        date_with_rownum = date_df.withColumn("row_num", row_number().over(windowSpec))
-        
-        # Join by row number
-        merged_df = date_with_rownum.join(
-            srvar_with_rownum.drop("row_id"),
-            "row_num",
-            "left"
-        )
-        
+
         # Then join VARNN data
         varnn_with_rownum = varnn_df.withColumn("row_num", row_number().over(windowSpec))
         
-        merged_df = merged_df.join(
+        merged_df = srvar_with_rownum.join(
             varnn_with_rownum.drop("row_id"),
             "row_num",
             "left"
         )
         
         # Drop temporary columns
-        merged_df = merged_df.drop("row_id", "row_num")
+        merged_df = (
+            merged_df
+            .withColumn(ID_COLUMN, col("row_id"))
+            .withColumn(DATE_COLUMN, col("date_VARNN"))
+            .drop("date_SrVAR", "date_VARNN", "row_id", "row_num")
+        )
         
         logger.info(f"Successfully merged all dataframes, resulting in {merged_df.count()} rows")
         logger.info("Final schema after merging:")
@@ -253,15 +205,12 @@ def main():
         spark = create_spark_session("Prediction_Data_Processor")
         
         # Define file paths
-        srvar_file_path = f"{CSV_BASE_DIR}/{SrVAR_DIR}/{NAME_TABLE}_SrVAR_future.csv"
-        varnn_file_path = f"{CSV_BASE_DIR}/{VARNN_DIR}/{NAME_TABLE}_VARNN_future.csv"
+        srvar_file_path = f"{CSV_BASE_DIR}/{SrVAR_DIR}/{NAME_TABLE}_future_{today}.csv"
+        varnn_file_path = f"{CSV_BASE_DIR}/{VARNN_DIR}/{NAME_TABLE}_future_{today}.csv"
         
         logger.info(f"Processing files: {srvar_file_path} and {varnn_file_path}")
         logger.info(f"Using NAME_TABLE: {NAME_TABLE}")
         logger.info(f"Using P={P} days starting from {START_DATE}")
-        
-        # Step 1: Generate date range and ID using P parameter
-        date_df = generate_date_range_df(spark, START_DATE, P)
         
         # Step 2: Read CSV files and rename columns
         srvar_df = read_csv_with_model_suffix(spark, srvar_file_path, "SrVAR")
@@ -275,7 +224,7 @@ def main():
         create_namespace_if_not_exists(spark, TARGET_NAMESPACE)
         
         # Step 3: Merge all dataframes
-        final_df = merge_future_data(date_df, srvar_df, varnn_df)
+        final_df = merge_future_data(srvar_df, varnn_df)
         
         for column in final_df.columns:
             if column != DATE_COLUMN and column not in ["year", "month", ID_COLUMN]:

@@ -39,7 +39,8 @@ RUN pip install --no-cache-dir \
     pyarrow \
     iceberg-python \
     boto3 \
-    jupyter
+    jupyter \
+    tensorflow
 
 # Quay lại người dùng airflow
 USER airflow
