@@ -14,6 +14,11 @@ cube(`indices`, {
       primary_key: true
     },
     
+    gold: {
+      sql: `gold`,
+      type: `number`
+    },
+    
     russell2000: {
       sql: `russell2000`,
       type: `number`
@@ -36,11 +41,6 @@ cube(`indices`, {
     
     s_p500: {
       sql: `s_p500`,
-      type: `number`
-    },
-    
-    gold: {
-      sql: `gold`,
       type: `number`
     },
     

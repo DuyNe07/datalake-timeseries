@@ -31,7 +31,8 @@ FINANCIAL_COLUMNS = ["price"]
 DATE_COLUMN = "date"
 BASE_PREDICT_PATH = '/src/data/predict'
 BASE_FUTURE_PATH = '/src/data/future'
-BASE_MODEL_PATH = '/src/model'
+BASE_MODEL_PATH = '/src/airflow/model'
+BASE_EVAL_PATH = '/src/data/evaluation'
 today = datetime.today().date()
 today = today.strftime('%d_%m_%Y')
 START_DATE = '05-01-1995'
@@ -266,16 +267,39 @@ def reverse_difference(original_data, differenced_data, order=1):
     restored = differenced_data + last_values
     return restored
 
-def evaluate_data(original, predicted, columns):
+def evaluate_data(original, predicted, columns, table_name: str):
+    metrics = []
+
     for i, col in enumerate(columns):
         mse = mean_squared_error(original[:, i], predicted[:, i])
         rmse = np.sqrt(mse)
         mae = mean_absolute_error(original[:, i], predicted[:, i])
         logger.info(f"{col} -- MSE: {mse:.5f}, RMSE: {rmse:.5f}, MAE: {mae:.5f}")
+        metrics.append({
+            "variable": col,
+            "MSE": mse,
+            "RMSE": rmse,
+            "MAE": mae
+        })
+
+    # Aggregate (total) metrics
     total_mse = mean_squared_error(original, predicted)
     total_rmse = np.sqrt(total_mse)
     total_mae = mean_absolute_error(original, predicted)
     logger.info(f"Total -- MSE: {total_mse:.5f}, RMSE: {total_rmse:.5f}, MAE: {total_mae:.5f}")
+    
+    metrics.append({
+        "variable": "Total",
+        "MSE": total_mse,
+        "RMSE": total_rmse,
+        "MAE": total_mae
+    })
+
+    # Save to CSV
+    os.makedirs(BASE_EVAL_PATH, exist_ok=True)
+    output_path = os.path.join(BASE_EVAL_PATH, f"SrVAR_{table_name}_metrics.csv")
+    pd.DataFrame(metrics).to_csv(output_path, index=True)
+    logger.info(f"Evaluation metrics saved to {output_path}")
 
 def unscale(data, train_df: pd.DataFrame, scalers):
     temp = data.copy()
@@ -439,11 +463,15 @@ def main(table_name: str):
         testY_original = reverse_difference(last_test_values, testY)
         pred_SrVAR_original = reverse_difference(last_test_values, predictions_SrVAR)
 
-        evaluate_data(testY_original, pred_SrVAR_original, scaled_test.columns)
+        #Save model
+        model_path = os.path.join(BASE_MODEL_PATH, f"srvar_model_{table_name}.pth")
+        torch.save(trained_model_SrVAR.state_dict(), model_path)
+
+        evaluate_data(testY_original, pred_SrVAR_original, scaled_test.columns, table_name)
 
         unscaled_SrVAR = unscale(pred_SrVAR_original, scaled_train, scalers)
         originY = unscale(testY_original, scaled_train, scalers)
-        evaluate_data(originY, unscaled_SrVAR, scaled_test.columns)
+        evaluate_data(originY, unscaled_SrVAR, scaled_test.columns, table_name)
 
         days_to_add = len(scaled_train)
         predict_date = start_date_dt + timedelta(days=days_to_add)

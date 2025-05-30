@@ -155,11 +155,7 @@ def write_to_iceberg(df: DataFrame, table_name: str, partition_by: List[str]):
     
     try:
         # Convert date to timestamp for Iceberg compatibility
-        df = df.withColumn(DATE_COLUMN, 
-                          to_timestamp(
-                              date_format(col(DATE_COLUMN), "yyyy-MM-dd HH:mm:ss")
-                          )
-                         )
+        df = df.withColumn(DATE_COLUMN, col(DATE_COLUMN).cast("timestamp"))
         
         # Ensure ID column is of proper type
         df = df.withColumn(ID_COLUMN, col(ID_COLUMN).cast(LongType()))

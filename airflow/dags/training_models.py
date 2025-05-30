@@ -1,5 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
+from airflow.operators.dagrun_operator import TriggerDagRunOperator
 from airflow.operators.empty import EmptyOperator
 from datetime import datetime, timedelta
 import sys
@@ -16,12 +17,12 @@ from TrainingVARNN import main as run_train_varnn
 default_args = {
     'owner': 'airflow',
     'retries': 1,
-    'retry_delay': timedelta(minutes=5),
+    'retry_delay': timedelta(minutes=1),
 }
 with DAG(
     'training_models',
     default_args=default_args,
-    description='Load the data from bronze to silver in order to process the data, then to gold to build model and extract BI',
+    description='Training models for each field',
     schedule = None,
     start_date=datetime(2025, 5, 15),
     catchup=False,
@@ -59,6 +60,13 @@ with DAG(
         )
         varnn_tasks.append(task)
 
+    trigger_load_to_visualize = TriggerDagRunOperator(
+        task_id="trigger_loading_to_visualize",
+        trigger_dag_id="loading_to_visualize",
+        wait_for_completion=False,
+        reset_dag_run=True,
+        execution_date="{{ ds }}",
+    )
 
     end = EmptyOperator(task_id='end')
 
@@ -70,4 +78,4 @@ with DAG(
     for i in range(1, len(varnn_tasks)):
         varnn_tasks[i - 1] >> varnn_tasks[i]
 
-    varnn_tasks[-1] >> end
+    varnn_tasks[-1] >> trigger_load_to_visualize >> end

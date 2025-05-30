@@ -14,6 +14,11 @@ cube(`indices_future`, {
       primary_key: true
     },
     
+    gold_srvar: {
+      sql: `gold_srvar`,
+      type: `number`
+    },
+    
     russell2000_srvar: {
       sql: `russell2000_srvar`,
       type: `number`
@@ -39,8 +44,8 @@ cube(`indices_future`, {
       type: `number`
     },
     
-    gold_srvar: {
-      sql: `gold_srvar`,
+    gold_varnn: {
+      sql: `gold_varnn`,
       type: `number`
     },
     
@@ -66,11 +71,6 @@ cube(`indices_future`, {
     
     s_p500_varnn: {
       sql: `s_p500_varnn`,
-      type: `number`
-    },
-    
-    gold_varnn: {
-      sql: `gold_varnn`,
       type: `number`
     },
     

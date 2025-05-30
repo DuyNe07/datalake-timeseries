@@ -24,7 +24,7 @@ def main(output_dir: str, start_date_str: str):
         'Oil': 'CL=F',
         'US 2 Year Bond': '2YY=F',
         'US 5 Year Bond': '^FVX',
-        'US 10 Year Bond': 'ZN=F',
+        'US 10 Year Bond': '^TNX',
         'US 3 Month Bond': '^IRX',
         'US Dollar': 'DX-Y.NYB',
         'USD_VND': 'VND=X',

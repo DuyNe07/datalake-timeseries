@@ -34,6 +34,21 @@ cube(`macro`, {
       type: `number`
     },
     
+    cpi: {
+      sql: `cpi`,
+      type: `number`
+    },
+    
+    inflation_rate: {
+      sql: `inflation_rate`,
+      type: `number`
+    },
+    
+    interest_rate: {
+      sql: `interest_rate`,
+      type: `number`
+    },
+    
     date: {
       sql: `date`,
       type: `time`
