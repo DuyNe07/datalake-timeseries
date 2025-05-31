@@ -33,7 +33,6 @@ with DAG(
     def run_scraper_callable(**kwargs):
         start_date = datetime.today() - timedelta(days=1)
         start_date_str = start_date.strftime("%d-%m-%Y")
-        start_date_str = '07-03-2025'
         output_dir = "/src/data/raw"
         run_yahoo_scraper(output_dir, start_date_str)
 
