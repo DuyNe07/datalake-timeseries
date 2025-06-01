@@ -64,8 +64,8 @@ with DAG(
         task_id="trigger_loading_to_visualize",
         trigger_dag_id="loading_to_visualize",
         wait_for_completion=False,
-        reset_dag_run=True,
-        execution_date="{{ ds }}",
+        reset_dag_run=False,
+        execution_date="{{ ts }}",
     )
 
     end = EmptyOperator(task_id='end')

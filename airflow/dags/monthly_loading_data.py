@@ -66,8 +66,8 @@ with DAG(
         task_id="trigger_silver_monthly",
         trigger_dag_id="silver_to_gold",
         wait_for_completion=False,
-        reset_dag_run=True,
-        execution_date="{{ ds }}",
+        reset_dag_run=False,
+        execution_date="{{ ts }}",
     )
 
     end = EmptyOperator(task_id='end')

@@ -107,7 +107,7 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
-        
+
   mc: # minio client for creating default bucket 
     image: minio/mc
     container_name: mc

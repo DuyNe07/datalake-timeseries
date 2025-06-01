@@ -22,7 +22,7 @@ with DAG(
     dag_id='daily_yahoo_scraper_and_load_to_bronze',
     default_args=default_args,
     description='Daily scrape from Yahoo and load to Bronze',
-    schedule_interval='0 21 * * *',  # Runs daily at 4:00 AM
+    schedule_interval='0 21 * * 1-5',  # Runs daily at 4:00 AM
     start_date=datetime(2025, 5, 25),
     catchup=False,
     max_active_runs=1,
@@ -53,8 +53,8 @@ with DAG(
         task_id="trigger_silver_daily",
         trigger_dag_id="silver_to_gold",
         wait_for_completion=False,
-        reset_dag_run=True,
-        execution_date="{{ ds }}",
+        reset_dag_run=False,
+        execution_date="{{ ts }}",
     )
 
     end = EmptyOperator(task_id='end')
