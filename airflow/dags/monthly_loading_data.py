@@ -16,18 +16,16 @@ from fred_interest_scraper import main as run_interest
 
 default_args = {
     'owner': 'airflow',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
+    'retries': 3,
     'retry_delay': timedelta(minutes=5),
 }
+
 with DAG(
     'monthly_inflation_interest_pipeline',
     default_args=default_args,
     description='Fetch latest inflation and interest rate data monthly on 15th',
     schedule_interval='0 8 15 * *',
-    start_date=datetime(2025, 5, 20),
+    start_date=datetime(2025, 6, 15),
     catchup=False,
     max_active_runs=1,
 ) as dag:

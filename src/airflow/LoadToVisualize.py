@@ -5,7 +5,7 @@ from typing import Optional
 
 from pyspark.sql import SparkSession, DataFrame  # type: ignore
 from pyspark.sql.functions import (  # type: ignore
-    col, year, month, row_number, monotonically_increasing_id
+    col, year, month, row_number, monotonically_increasing_id, to_timestamp, date_format, lit
 )
 from pyspark.sql.types import LongType, TimestampType  # type: ignore
 from pyspark.sql.window import Window  # type: ignore
@@ -154,30 +154,41 @@ def write_to_iceberg(spark: SparkSession, df: DataFrame, table_name: str):
     
     try:
         # Convert date to timestamp and ID to LongType
-        df = (
-            df.withColumn(DATE_COLUMN, col(DATE_COLUMN).cast("timestamp"))
-              .withColumn(ID_COLUMN, col(ID_COLUMN).cast(LongType()))
-              .withColumn("year", year(col(DATE_COLUMN)))
-              .withColumn("month", month(col(DATE_COLUMN)))
+        df = df.withColumn(DATE_COLUMN, col(DATE_COLUMN).cast("timestamp"))
+        
+        # Ensure ID column is of proper type
+        df = (df.withColumn(ID_COLUMN, col(ID_COLUMN).cast(LongType()))
+                .withColumn("year", year(col(DATE_COLUMN)))
+                .withColumn("month", month(col(DATE_COLUMN)))
         )
+        df.show()
 
         # Alias for clarity
-        new_df = df.alias("new")
-        existing_df = spark.table(table_name).alias("existing")
+        min_date = df.agg({"date": "min"}).collect()[0][0]
+        max_date = df.agg({"date": "max"}).collect()[0][0]
 
-        # Find updates (matching dates)
+        # Filter existing table to only affected range
+        existing_df = spark.table(table_name) \
+                        .filter((col(DATE_COLUMN) >= lit(min_date)) & (col(DATE_COLUMN) <= lit(max_date)))
+
+        # Merge logic (existing in range + new in range, where new overrides existing)
+        new_df = df.alias("new")
+        existing_df = existing_df.alias("existing")
+
+        # Get updates (dates to replace)
         updates_df = existing_df.join(new_df, on=DATE_COLUMN, how="inner") \
                                 .select([col(f"new.{c}") for c in existing_df.columns])
 
-        # Find inserts (new dates only)
+        # Get inserts (dates only in new)
         inserts_df = new_df.join(existing_df.select(DATE_COLUMN), on=DATE_COLUMN, how="left_anti") \
-                           .select([col(f"new.{c}") for c in new_df.columns])
+                        .select([col(f"new.{c}") for c in new_df.columns])
 
-        # Union updates and inserts
-        merged_df = updates_df.unionByName(inserts_df)
+        # Get untouched old data outside of update range
+        unchanged_df = spark.table(table_name) \
+                            .filter((col(DATE_COLUMN) < lit(min_date)) | (col(DATE_COLUMN) > lit(max_date)))
 
-        logger.info("Sample table to write:")
-        merged_df.show(5)
+        # Final merge: unchanged + updates + inserts
+        merged_df = unchanged_df.unionByName(updates_df).unionByName(inserts_df)
 
         # Overwrite affected partitions
         merged_df.writeTo(table_name).overwritePartitions()
