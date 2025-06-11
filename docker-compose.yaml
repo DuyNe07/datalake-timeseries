@@ -1,4 +1,5 @@
 services:
+<<<<<<< HEAD
     version-store: # version store for nessie
         image: postgres
         hostname: version-store
@@ -18,6 +19,27 @@ services:
             interval: 5s
             timeout: 5s
             retries: 5
+=======
+  version-store:
+    image: postgres
+    hostname: version-store
+    container_name: version-store
+    environment:
+      - POSTGRES_PASSWORD=admin123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=catalog_nessie
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./volumes/catalog_nessie_db:/var/lib/postgresql/data
+    networks:
+      - datalake
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d catalog_nessie -U admin"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+>>>>>>> feature/add-airflow
 
     nessie: # catalog for iceberg
         image: ghcr.io/projectnessie/nessie
@@ -66,6 +88,7 @@ services:
         depends_on:
             - nessie
 
+<<<<<<< HEAD
     spark:
         image: spark
         container_name: spark
@@ -97,6 +120,51 @@ services:
             # - 10099:10099 # Kyuubi web ui port
         networks:
             - datalake
+=======
+  spark:
+    image: spark-iceberg
+    container_name: spark
+    build: spark/
+    environment:
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+    volumes:
+      - ./src:/src
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+    ports:
+      - 8888:8888
+      - 7077:7077
+      - 8061:8061
+      - 8062:8062
+      - 10000:10000
+      - 10009:10009
+      - 18080:18080
+      - 9083:9083
+    networks:
+      - datalake
+      
+  minio: # Storage
+      hostname: minio
+      image: 'minio/minio'
+      container_name: minio
+      ports:
+        - '9000:9000'
+        - '9001:9001'
+      volumes:
+        - ./volumes/minio:/data
+      environment:
+        - MINIO_ROOT_USER=admin
+        - MINIO_ROOT_PASSWORD=admin123
+      command: server /data --console-address ":9001"
+      networks:
+        - datalake
+      healthcheck:
+        test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+        interval: 5s
+        timeout: 5s
+        retries: 5
+>>>>>>> feature/add-airflow
 
     minio: # Storage
         hostname: minio
@@ -152,6 +220,7 @@ services:
         depends_on:
             - trino
 
+<<<<<<< HEAD
     metabase:
         container_name: metabase
         depends_on:
@@ -172,6 +241,101 @@ services:
             - MB_ENCRYPTION_SECRET_KEY=thisisasecretkey!!
         networks:
             - datalake
+=======
+  airflow-init:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-init
+    hostname: airflow-init
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - _AIRFLOW_DB_UPGRADE=true
+      - _AIRFLOW_WWW_USER_CREATE=true
+      - _AIRFLOW_WWW_USER_USERNAME=admin
+      - _AIRFLOW_WWW_USER_PASSWORD=admin
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/src
+    networks:
+      - datalake
+    command: bash -c "airflow db init && airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
+
+  airflow-webserver:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-webserver
+    hostname: airflow-webserver
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      spark:
+        condition: service_started
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark:7077
+      - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=9090
+    ports:
+      - 9090:9090
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/src
+    networks:
+      - datalake
+    command: webserver
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:9090/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  airflow-scheduler:
+    build:
+      context: ./airflow
+      dockerfile: Dockerfile
+    container_name: airflow-scheduler
+    hostname: airflow-scheduler
+    depends_on:
+      airflow-webserver:
+        condition: service_healthy
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-postgres/airflow
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
+      - AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION=true
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+      - AWS_ACCESS_KEY_ID=admin
+      - AWS_SECRET_ACCESS_KEY=admin123
+      - AWS_REGION=us-east-1
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark:7077
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - ./src:/src
+    networks:
+      - datalake
+    command: scheduler
+>>>>>>> feature/add-airflow
 
 networks:
     datalake:
