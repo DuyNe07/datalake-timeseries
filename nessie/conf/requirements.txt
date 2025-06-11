@@ -1,2 +1,0 @@
-requests>=2.25.0
-pynessie>=0.5.1

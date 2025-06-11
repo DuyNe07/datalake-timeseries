@@ -1,11 +1,7 @@
-.venv
-.env
+spark/jars
+spark/bin
 volumes
-cube/conf
-metabase/conf
-spark-iceberg/bin/*.tgz
-spark-iceberg/jars/*.jar
-src/logs
-/spark/jars/*.jar
-/metabase
+cubestore_data/*
 *.log
+**/*.log
+.vscode-server
