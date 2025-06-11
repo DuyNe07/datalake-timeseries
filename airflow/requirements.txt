@@ -1,9 +1,0 @@
-apache-airflow-providers-apache-spark==4.1.0
-pyspark==3.5.5
-pandas
-numpy
-scikit-learn
-statsmodels
-matplotlib
-boto3
-pyarrow
