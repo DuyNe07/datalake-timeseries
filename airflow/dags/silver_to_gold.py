@@ -28,7 +28,6 @@ with DAG(
     schedule = None,
     start_date=datetime(2025, 5, 15),
     catchup=False,
-    max_active_runs=1,
 ) as dag:
 
     start = EmptyOperator(task_id='start')

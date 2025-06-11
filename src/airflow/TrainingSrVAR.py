@@ -390,7 +390,7 @@ def main(table_name: str):
         best_train_loss = None
         logger.info('Start training model')
         # Try models with different number of hidden states
-        for num_states in range(1, 6):
+        for num_states in range(2, 6):
             model = SrVAR(input_dim=input_dim, hidden_dim=hidden_dim, num_states=num_states, num_vars=num_vars)
 
             trained_model_SrVAR, train_loss_history_SrVAR, val_loss_history_SrVAR = train_srvarm(

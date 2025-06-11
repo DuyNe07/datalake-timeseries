@@ -25,7 +25,6 @@ with DAG(
     schedule_interval='0 21 * * 1-5',  # Runs daily at 4:00 AM
     start_date=datetime(2025, 6, 4),
     catchup=False,
-    max_active_runs=1,
 ) as dag:
 
     start = EmptyOperator(task_id='start')

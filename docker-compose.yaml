@@ -1,5 +1,5 @@
 services:
-  version-store: # version store for nessie
+  version-store:
     image: postgres
     hostname: version-store
     container_name: version-store
@@ -75,15 +75,14 @@ services:
       - ./src:/src
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
     ports:
-      - 8888:8888 # Spark notebook port
-      - 7077:7077 # Spark port
-      - 8061:8061 # Spark master web ui port
-      - 8062:8062 # Spark worker web ui port
-      - 10000:10000 # Thrift ODBC/JDBC port
-      - 10009:10009 # Kyuubi JDBC port
-      - 18080:18080 # Spark history web ui port
-      - 9083:9083 # Metastore thrift
-      # - 10099:10099 # Kyuubi web ui port
+      - 8888:8888
+      - 7077:7077
+      - 8061:8061
+      - 8062:8062
+      - 10000:10000
+      - 10009:10009
+      - 18080:18080
+      - 9083:9083
     networks:
       - datalake
       
@@ -249,20 +248,19 @@ services:
       - AWS_SECRET_ACCESS_KEY=admin123
       - AWS_REGION=us-east-1
       - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark:7077
-      # Cấu hình Airflow sử dụng cổng 9090 thay vì 8080
       - AIRFLOW__WEBSERVER__WEB_SERVER_PORT=9090
     ports:
-      - 9090:9090  # Ánh xạ cổng 9090 của host đến cổng 9090 của container
+      - 9090:9090
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
-      - ./src:/src  # Đồng bộ với thư mục src của Spark
+      - ./src:/src
     networks:
       - datalake
     command: webserver
     healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:9090/health"]  # Cũng thay đổi cổng trong healthcheck
+      test: ["CMD", "curl", "--fail", "http://localhost:9090/health"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -290,7 +288,7 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
-      - ./src:/src  # Đồng bộ với thư mục src của Spark
+      - ./src:/src
     networks:
       - datalake
     command: scheduler
