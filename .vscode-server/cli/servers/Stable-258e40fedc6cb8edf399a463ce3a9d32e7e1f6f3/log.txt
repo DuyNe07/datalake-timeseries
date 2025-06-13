@@ -1,0 +1,72 @@
+*
+* Visual Studio Code Server
+*
+* By using the software, you agree to
+* the Visual Studio Code Server License Terms (https://aka.ms/vscode-server-license) and
+* the Microsoft Privacy Statement (https://privacy.microsoft.com/en-US/privacystatement).
+*
+Server bound to /tmp/code-2a08856b-4c23-407d-9ee8-4295e78783bb
+Extension host agent listening on /tmp/code-2a08856b-4c23-407d-9ee8-4295e78783bb
+
+[21:07:58] 
+
+
+
+
+[21:07:58] Extension host agent started.
+[21:07:58] Started initializing default profile extensions in extensions installation folder. file:///home/DuyBao/.vscode-server/extensions
+[21:07:58] ComputeTargetPlatform: linux-x64
+[21:07:58] Completed initializing default profile extensions in extensions installation folder. file:///home/DuyBao/.vscode-server/extensions
+[21:07:58] [<unknown>][4852f9a7][ExtensionHostConnection] New connection established.
+[21:07:58] [<unknown>][17992a71][ManagementConnection] New connection established.
+[21:07:58] [<unknown>][4852f9a7][ExtensionHostConnection] <1670543> Launched Extension Host Process.
+[21:08:01] ComputeTargetPlatform: linux-x64
+[21:08:01] Getting Manifest... github.copilot-chat
+[21:08:01] Getting Manifest... github.copilot
+[21:08:02] Installing extension: github.copilot {
+  installPreReleaseVersion: false,
+  donotIncludePackAndDependencies: true,
+  donotVerifySignature: false,
+  context: { clientTargetPlatform: 'win32-x64' },
+  isApplicationScoped: false,
+  profileLocation: _r {
+    scheme: 'file',
+    authority: '',
+    path: '/home/DuyBao/.vscode-server/extensions/extensions.json',
+    query: '',
+    fragment: '',
+    _formatted: 'file:///home/DuyBao/.vscode-server/extensions/extensions.json',
+    _fsPath: '/home/DuyBao/.vscode-server/extensions/extensions.json'
+  },
+  productVersion: { version: '1.100.3', date: '2025-06-02T13:30:54.273Z' }
+}
+[21:08:02] Installing the extension without checking dependencies and pack github.copilot
+[21:08:02] Installing extension: github.copilot-chat {
+  installPreReleaseVersion: false,
+  donotIncludePackAndDependencies: true,
+  donotVerifySignature: false,
+  context: { clientTargetPlatform: 'win32-x64' },
+  isApplicationScoped: false,
+  profileLocation: _r {
+    scheme: 'file',
+    authority: '',
+    path: '/home/DuyBao/.vscode-server/extensions/extensions.json',
+    query: '',
+    fragment: '',
+    _formatted: 'file:///home/DuyBao/.vscode-server/extensions/extensions.json',
+    _fsPath: '/home/DuyBao/.vscode-server/extensions/extensions.json'
+  },
+  productVersion: { version: '1.100.3', date: '2025-06-02T13:30:54.273Z' }
+}
+[21:08:02] Installing the extension without checking dependencies and pack github.copilot-chat
+[21:08:06] Extension signature verification result for github.copilot-chat: Success. Internal Code: 0. Executed: true. Duration: 1752ms.
+[21:08:06] Extracted extension to file:///home/DuyBao/.vscode-server/extensions/github.copilot-chat-0.27.3: github.copilot-chat
+[21:08:06] Renamed to /home/DuyBao/.vscode-server/extensions/github.copilot-chat-0.27.3
+[21:08:07] Extension installed successfully: github.copilot-chat file:///home/DuyBao/.vscode-server/extensions/extensions.json
+[21:08:08] Extension signature verification result for github.copilot: Success. Internal Code: 0. Executed: true. Duration: 1546ms.
+[21:08:08] Extracted extension to file:///home/DuyBao/.vscode-server/extensions/github.copilot-1.331.0: github.copilot
+[21:08:08] Renamed to /home/DuyBao/.vscode-server/extensions/github.copilot-1.331.0
+[21:08:08] Extension installed successfully: github.copilot file:///home/DuyBao/.vscode-server/extensions/extensions.json
+New EH opened, aborting shutdown
+[21:12:58] New EH opened, aborting shutdown
+[21:53:22] [<unknown>][17992a71][ManagementConnection] The client has disconnected, will wait for reconnection 3h before disposing...

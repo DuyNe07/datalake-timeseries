@@ -1,0 +1,15 @@
+/*!
+ * NevWare21 Solutions LLC - ts-async, 0.5.4
+ * https://github.com/nevware21/ts-async
+ * Copyright (c) NevWare21 Solutions LLC and contributors. All rights reserved.
+ * Licensed under the MIT license.
+ */
+
+/*!
+ * is-plain-object <https://github.com/jonschlinkert/is-plain-object>
+ *
+ * Copyright (c) 2014-2017, Jon Schlinkert.
+ * Released under the MIT License.
+ */
+
+/*! https://github.com/nevware21/ts-utils v0.11.6 */
