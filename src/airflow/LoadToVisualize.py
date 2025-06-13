@@ -24,6 +24,7 @@ TARGET_CATALOG = "datalake"
 TARGET_NAMESPACE = f"{TARGET_CATALOG}.gold"
 today = datetime.today().date()
 today = today.strftime('%d_%m_%Y')
+# Test
 
 
 def create_spark_session(app_name: str) -> SparkSession:
