@@ -6,10 +6,10 @@ import datetime
 from functools import reduce
 from pyspark.sql import SparkSession, DataFrame     # type: ignore
 from pyspark.sql.functions import col, regexp_replace   # type: ignore
-from current_commit import create_commit, save_commit_info
-from rollback import rollback_to_commit
+from nessie.current_commit import create_commit, save_commit_info
+from nessie.rollback import rollback_to_commit
 
-sys.path.append('/nessie')
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger("InsertRawToBronze")
 
