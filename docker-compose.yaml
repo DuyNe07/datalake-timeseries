@@ -1,4 +1,25 @@
 services:
+<<<<<<< HEAD
+    version-store: # version store for nessie
+        image: postgres
+        hostname: version-store
+        container_name: version-store
+        environment:
+            - POSTGRES_PASSWORD=admin123
+            - POSTGRES_USER=admin
+            - POSTGRES_DB=catalog_nessie
+        ports:
+            - "5433:5432"
+        volumes:
+            - ./volumes/catalog_nessie_db:/var/lib/postgresql/data
+        networks:
+            - datalake
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -d catalog_nessie -U admin"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+=======
   version-store:
     image: postgres
     hostname: version-store
@@ -18,6 +39,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+>>>>>>> feature/add-airflow
 
     nessie: # catalog for iceberg
         image: ghcr.io/projectnessie/nessie
@@ -66,6 +88,39 @@ services:
         depends_on:
             - nessie
 
+<<<<<<< HEAD
+    spark:
+        image: spark
+        container_name: spark
+        build: spark/
+        environment:
+            - AWS_ACCESS_KEY_ID=admin
+            - AWS_SECRET_ACCESS_KEY=admin123
+            - AWS_REGION=us-east-1
+            - PYTHONPATH=/nessie:/src
+            - PYSPARK_PYTHON=/usr/bin/python3
+            - PYSPARK_DRIVER_PYTHON=/usr/bin/python3
+            - NESSIE_API_URL=http://nessie:19120/api/v1
+            - NESSIE_USER=duy-ne
+        volumes:
+            - ./src:/src
+            - ./nessie:/nessie
+            - ./nessie/conf/init-nessie.sh:/usr/bin/init-nessie.sh
+            # - ./spark/scripts/entrypoint.sh:/usr/bin/entrypoint.sh
+            - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf
+        ports:
+            - 8888:8888 # Spark notebook port
+            - 7077:7077 # Spark port
+            - 8061:8061 # Spark master web ui port
+            - 8062:8062 # Spark worker web ui port
+            - 10000:10000 # Thrift ODBC/JDBC port
+            - 10009:10009 # Kyuubi JDBC port
+            - 18080:18080 # Spark history web ui port
+            - 9083:9083 # Metastore thrift
+            # - 10099:10099 # Kyuubi web ui port
+        networks:
+            - datalake
+=======
   spark:
     image: spark-iceberg
     container_name: spark
@@ -109,6 +164,7 @@ services:
         interval: 5s
         timeout: 5s
         retries: 5
+>>>>>>> feature/add-airflow
 
     minio: # Storage
         hostname: minio
@@ -164,6 +220,28 @@ services:
         depends_on:
             - trino
 
+<<<<<<< HEAD
+    metabase:
+        container_name: metabase
+        depends_on:
+            - cube
+            - trino
+        hostname: metabase
+        build:
+            context: ./metabase
+        volumes:
+            - ./metabase:/metabase-data
+            - ./metabase/metabase-settings.yml:/metabase-settings.yml
+        ports:
+            - 3030:3030
+        environment:
+            - MB_DB_FILE=/metabase-data/metabase.db
+            - MB_DB_TYPE=h2
+            - MB_JETTY_PORT=3030
+            - MB_ENCRYPTION_SECRET_KEY=thisisasecretkey!!
+        networks:
+            - datalake
+=======
   airflow-init:
     build:
       context: ./airflow
@@ -257,6 +335,7 @@ services:
     networks:
       - datalake
     command: scheduler
+>>>>>>> feature/add-airflow
 
 networks:
     datalake:
