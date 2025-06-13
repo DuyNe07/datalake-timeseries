@@ -1,5 +1,8 @@
 services:
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
     version-store: # version store for nessie
         image: postgres
         hostname: version-store
@@ -19,6 +22,7 @@ services:
             interval: 5s
             timeout: 5s
             retries: 5
+<<<<<<< HEAD
 =======
   version-store:
     image: postgres
@@ -40,6 +44,8 @@ services:
       timeout: 5s
       retries: 5
 >>>>>>> feature/add-airflow
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
 
     nessie: # catalog for iceberg
         image: ghcr.io/projectnessie/nessie
@@ -89,6 +95,9 @@ services:
             - nessie
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
     spark:
         image: spark
         container_name: spark
@@ -120,6 +129,7 @@ services:
             # - 10099:10099 # Kyuubi web ui port
         networks:
             - datalake
+<<<<<<< HEAD
 =======
   spark:
     image: spark-iceberg
@@ -165,6 +175,8 @@ services:
         timeout: 5s
         retries: 5
 >>>>>>> feature/add-airflow
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
 
     minio: # Storage
         hostname: minio
@@ -221,6 +233,9 @@ services:
             - trino
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
     metabase:
         container_name: metabase
         depends_on:
@@ -241,6 +256,7 @@ services:
             - MB_ENCRYPTION_SECRET_KEY=thisisasecretkey!!
         networks:
             - datalake
+<<<<<<< HEAD
 =======
   airflow-init:
     build:
@@ -336,6 +352,8 @@ services:
       - datalake
     command: scheduler
 >>>>>>> feature/add-airflow
+=======
+>>>>>>> parent of 727170a (Merge pull request #1 from DuyNe07/feature/add-airflow)
 
 networks:
     datalake:
