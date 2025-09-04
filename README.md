@@ -6,7 +6,7 @@ This project implements a modern data lakehouse platform designed for multivaria
 
 The platform ingests diverse financial and economic data, processes it through a medallion architecture (bronze, silver, gold), trains advanced machine learning models, and provides insights through interactive dashboards.
 
-![Data Lakehouse Architecture](./img/Schema-datalake-Hình%201.1%20Kho%20dữ%20liệu.drawio.png)
+![Data Lakehouse Architecture](./img/Cấu%20trúc%20DL.png)
 
 ## Architecture
 
