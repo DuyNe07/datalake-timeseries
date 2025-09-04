@@ -113,33 +113,16 @@ This approach enables:
 
 ## Technology Stack
 
-### Storage
-![MinIO](https://img.shields.io/badge/MinIO-C72E49?style=for-the-badge&logo=minio&logoColor=white)
-
-### Processing
-![Apache Spark](https://img.shields.io/badge/Apache_Spark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)
-![PySpark](https://img.shields.io/badge/PySpark-E25A1C?style=for-the-badge&logo=apachespark&logoColor=white)
-
-### Orchestration
-![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-017CEE?style=for-the-badge&logo=apacheairflow&logoColor=white)
-
-### Version Control
-![Nessie](https://img.shields.io/badge/Nessie-4B5562?style=for-the-badge&logo=git&logoColor=white)
-
-### Query Engine
-![Trino](https://img.shields.io/badge/Trino-DD00A1?style=for-the-badge&logo=trino&logoColor=white)
-
-### ML Frameworks
-![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-FF6F00?style=for-the-badge&logo=tensorflow&logoColor=white)
-
-### Visualization
-![Metabase](https://img.shields.io/badge/Metabase-509EE3?style=for-the-badge&logo=metabase&logoColor=white)
-![Cube.js](https://img.shields.io/badge/Cube.js-8C8CFF?style=for-the-badge&logo=cube&logoColor=white)
-
-### Containerization
-![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![MinIO](https://img.shields.io/badge/MinIO-C72E49?logo=minio&logoColor=white)
+![Apache Spark](https://img.shields.io/badge/Apache_Spark-E25A1C?&logo=apachespark&logoColor=white)
+![PySpark](https://img.shields.io/badge/PySpark-E25A1C?&logo=apachespark&logoColor=white)
+![Apache Airflow](https://img.shields.io/badge/Apache_Airflow-017CEE?&logo=apacheairflow&logoColor=white)
+![Nessie](https://img.shields.io/badge/Nessie-4B5562?&logo=git&logoColor=white)
+![Trino](https://img.shields.io/badge/Trino-DD00A1?&logo=trino&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?&logo=pytorch&logoColor=white)
+![TensorFlow](https://img.shields.io/badge/TensorFlow-FF6F00?&logo=tensorflow&logoColor=white)
+![Cube.js](https://img.shields.io/badge/Cube.js-8C8CFF?&logo=cube&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?&logo=docker&logoColor=white)
 
 ## Project Structure
 
